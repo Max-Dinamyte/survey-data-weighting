@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Survey weighting tool</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-bg" aria-hidden="true">
+    <svg viewBox="0 0 1200 320" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+      <path d="M-50,230 C150,180 300,270 500,220 C700,170 850,240 1050,190 C1150,165 1200,175 1250,170" fill="none" stroke="rgba(255,255,255,0.10)" stroke-width="1.5"/>
+      <path d="M-50,270 C180,235 340,300 560,260 C760,225 900,285 1080,240 C1160,220 1200,225 1250,222" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="1.5"/>
+      <path d="M-50,180 C200,120 380,200 600,150 C780,110 920,175 1100,130 C1170,113 1200,118 1250,112" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>
+      <path d="M-50,90 C220,40 400,110 620,65 C800,30 940,90 1120,50 C1180,36 1210,40 1250,36" fill="none" stroke="rgba(201,150,47,0.30)" stroke-width="1.5"/>
+      <path d="M-50,320 C160,300 320,340 540,310 C740,283 880,330 1080,300 C1160,288 1200,292 1250,288" fill="none" stroke="rgba(255,255,255,0.09)" stroke-width="1.5"/>
+    </svg>
+  </div>
+  <div class="hero-inner">
+    <div class="hero-brand">
+      <span class="hero-mark"></span>
+      <span class="hero-title">Survey weighting</span>
+    </div>
+    <p class="hero-tagline">Raking / IPF calibration, entirely in your browser. Upload, map, weight, export.</p>
+  </div>
+</header>
+
+<main class="shell">
+
+  <section id="upload-section">
+    <div class="card upload-card">
+      <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="Upload a CSV file">
+        <div class="dropzone-title">Drop a CSV file here, or click to browse</div>
+        <div class="dropzone-sub">First row must be column headers. One row per respondent.</div>
+        <input id="file-input" type="file" accept=".csv" class="visually-hidden" />
+      </div>
+      <div id="upload-error" class="error-box" hidden></div>
+    </div>
+  </section>
+
+  <section id="app-section" hidden>
+
+    <div class="file-summary">
+      <div>
+        <span id="file-name" class="mono"></span>
+        <span id="file-meta" class="muted"></span>
+      </div>
+      <button id="reset-btn" class="btn btn-ghost">Load a different file</button>
+    </div>
+
+    <div class="card">
+      <h2 class="section-title">Sample design <span class="section-title-note">optional</span></h2>
+      <p class="section-help">
+        Turn this on if respondents weren't sampled at a uniform rate across some grouping (regions oversampled to get enough cases, for instance). Sets a design weight from population share ÷ sample share per stratum, and the demographic weighting above is calibrated starting from that instead of from scratch.
+      </p>
+      <div id="stratification-card"></div>
+      <label class="check-label strat-enforce-row" id="strat-enforce-row" hidden>
+        <input type="checkbox" id="strat-enforce-ongoing" checked />
+        Also keep strata balanced while raking the variables above (recommended, since otherwise later adjustments can drift the strata back out of balance)
+      </label>
+    </div>
+
+    <div class="card">
+      <h1 class="section-title">Map variables and set targets</h1>
+      <p class="section-help">
+        Turn a variable on, confirm which column it comes from, map the raw values to the categories below (or exclude them), then type target population shares. Each variable's boxes should sum to 1.00.
+      </p>
+      <div id="variables-list"></div>
+    </div>
+
+    <div class="card">
+      <h2 class="section-title">Trimming <span class="section-title-note">optional</span></h2>
+      <div class="trim-row">
+        <label class="check-label">
+          <input type="checkbox" id="trim-on" />
+          Cap extreme weights
+        </label>
+        <label class="num-label">Min <input type="number" id="trim-low" step="0.05" value="0.3" class="num-input" /></label>
+        <label class="num-label">Max <input type="number" id="trim-high" step="0.5" value="4" class="num-input" /></label>
+      </div>
+
+      <h2 class="section-title section-title-sp">Diagnostics &amp; export</h2>
+      <div id="diagnostics"></div>
+    </div>
+
+    <div class="card">
+      <h2 class="section-title">Look up a column</h2>
+      <p class="section-help">
+        See any column in the file with the current weights applied, including ones you're not weighting on. Updates live as you change targets above.
+      </p>
+      <select id="lookup-select" class="var-col-select lookup-select">
+        <option value="">Pick a column</option>
+      </select>
+      <div id="lookup-labels-editor"></div>
+      <div id="lookup-results"></div>
+    </div>
+
+    <div class="card">
+      <h2 class="section-title">Crosstab</h2>
+      <p class="section-help">
+        Weighted two-or-more-way tables between any columns, including ones you're not weighting on. Row variables combine into one row per unique combination.
+      </p>
+      <div class="crosstab-controls">
+        <div class="crosstab-field">
+          <label class="crosstab-label">Row variable(s)</label>
+          <div id="crosstab-row-list"></div>
+          <button id="crosstab-add-row" type="button" class="btn btn-ghost btn-small">+ Add row variable</button>
+        </div>
+        <div class="crosstab-field">
+          <label class="crosstab-label" for="crosstab-col-select">Column variable</label>
+          <select id="crosstab-col-select" class="var-col-select">
+            <option value="">Pick a column</option>
+          </select>
+        </div>
+        <div class="crosstab-field">
+          <label class="crosstab-label" for="crosstab-basis-select">Show</label>
+          <select id="crosstab-basis-select" class="var-col-select">
+            <option value="weighted_n">Weighted N</option>
+            <option value="row_pct">Row %</option>
+            <option value="col_pct">Column %</option>
+            <option value="total_pct">Total %</option>
+          </select>
+        </div>
+      </div>
+      <div id="crosstab-results"></div>
+    </div>
+
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <span class="footer-mark"></span>
+  <span>&copy; 2026 Max Dinamyte Ltd</span>
+  <span class="footer-sep">&middot;</span>
+  <button type="button" id="explainer-open" class="footer-link">How this works</button>
+</footer>
+
+<div id="explainer-backdrop" class="explainer-backdrop" hidden>
+  <div class="explainer-modal" role="dialog" aria-modal="true" aria-labelledby="explainer-title">
+    <div class="explainer-head">
+      <span class="explainer-mark"></span>
+      <h2 id="explainer-title">How this works</h2>
+      <button type="button" id="explainer-close" class="explainer-close" aria-label="Close">&times;</button>
+    </div>
+    <div class="explainer-body">
+      <p class="explainer-intro">This webapp is a side project of Christopher Williams, PhD. While he has tested it against synthetic data, it's important to remember, the webapp is still in beta testing and therefore may not do exactly what you want or expect it to do. See below for an explanation of what is going on under the hood.</p>
+      <section>
+        <h3>Your data never leaves this tab</h3>
+        <p>The file you upload is parsed and processed entirely in your browser. Nothing is sent to a server, because there isn't one. Refreshing or closing the page clears everything.</p>
+      </section>
+      <section>
+        <h3>The weighting method</h3>
+        <p>Weights come from raking (iterative proportional fitting): each active variable is adjusted in turn to match its target proportions, cycling through all active variables repeatedly. This stops once the largest single adjustment in a full pass drops below 0.05%, or after 50 passes, whichever comes first.</p>
+      </section>
+      <section>
+        <h3>Stratified samples</h3>
+        <p>Turning on "Sample design" doesn't just add another raking margin. It sets each respondent's starting weight to population share &divide; sample share for their stratum, and raking then adjusts from that starting point rather than from 1. This is the standard approach for a design that sampled strata at different rates.</p>
+      </section>
+      <section>
+        <h3>Trimming</h3>
+        <p>If weight capping is on, weights outside your min/max are pulled back to the bound after each full pass, then everything is rescaled so the average weight is still exactly 1.</p>
+      </section>
+      <section>
+        <h3>Comparing against Stata, R, or another tool</h3>
+        <p>Margins are raked sequentially (i.e., one variable at a time). While this is standard, it means the exact path to convergence depends on iteration order and stopping rule. Expect agreement to a few hundredths of a percentage point against another correctly-specified raking run, not bit-for-bit identical weights, unless the tolerance and variable order are matched exactly.</p>
+      </section>
+      <p class="explainer-legal">All code is copyrighted by Max Dinamyte Ltd.</p>
+    </div>
+    <div class="explainer-foot">
+      <button type="button" id="explainer-got-it" class="btn btn-primary">Got it</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
